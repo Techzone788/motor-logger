@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motor Usage Logger</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; max-width: 600px; }
+    h1 { color: #007bff; text-align: center; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input, select, button { padding: 12px; margin: 8px 0; width: 100%; font-size: 16px; box-sizing: border-box; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; font-size: 18px; padding: 15px; border-radius: 5px; }
+    button:hover { background: #0056b3; }
+    #qrcode { margin: 20px 0; text-align: center; }
+    #status { margin-top: 15px; padding: 15px; border-radius: 8px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>Motor Usage Logger</h1>
+
+  <!-- Generator -->
+  <div id="generator">
+    <h2>1. Generate Motor QR Code</h2>
+    <label>Motor ID / Name:</label>
+    <input type="text" id="generateMotorId" value="Motor-A1">
+    <button onclick="generateMotorQR()">Generate QR Code</button>
+    <div id="generateQR"></div>
+  </div>
+
+  <hr>
+
+  <!-- Worker Verification -->
+  <div id="verification" style="display:none;">
+    <h2>Worker Verification</h2>
+    <label>Enter Your Full Name:</label>
+    <input type="text" id="workerName" placeholder="e.g. John Smith">
+    <button onclick="verifyWorker()">Verify & Continue</button>
+    <div id="verifyStatus"></div>
+  </div>
+
+  <!-- Logger Form -->
+  <div id="logger" style="display:none;">
+    <h2>2. Log Usage</h2>
+    <label>Motor ID:</label>
+    <input type="text" id="motorId" readonly>
+
+    <label>Worker Name:</label>
+    <input type="text" id="loggedWorker" readonly>
+
+    <label>Motor Power:</label>
+    <input type="number" id="power" placeholder="e.g. 15.5" step="0.01" min="0.01">
+
+    <label>Unit:</label>
+    <select id="unit">
+      <option value="kW">kW</option>
+      <option value="HP">HP</option>
+    </select>
+
+    <label>Hour Meter Reading:</label>
+    <input type="number" id="hourMeter" placeholder="e.g. 2456.5" step="0.1" min="0">
+
+    <label>Usage Percentage (%):</label>
+    <input type="number" id="usage" placeholder="e.g. 85" min="0" max="100">
+
+    <button onclick="saveLog()">Save Log Entry</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const baseUrl = "https://techzone788.github.io/motor-logger";
+    const allowedWorkers = ["John Smith", "Ahmed Khan", "Maria Lopez", "David Okon"]; // ← Add your workers here
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const motorFromQR = urlParams.get('motor');
+
+    if (motorFromQR) {
+      document.getElementById('generator').style.display = 'none';
+      document.getElementById('verification').style.display = 'block';
+      document.getElementById('motorId').value = decodeURIComponent(motorFromQR);
+    } else {
+      document.getElementById('generator').style.display = 'block';
+    }
+
+    function verifyWorker() {
+      let workerName = document.getElementById('workerName').value.trim();
+      
+      if (!workerName) {
+        document.getElementById('verifyStatus').className = 'error';
+        document.getElementById('verifyStatus').innerHTML = "❌ Please enter your name";
+        return;
+      }
+
+      // Check if name is in allowed list (case insensitive)
+      const isAllowed = allowedWorkers.some(name => 
+        name.toLowerCase() === workerName.toLowerCase()
+      );
+
+      if (isAllowed) {
+        document.getElementById('verification').style.display = 'none';
+        document.getElementById('logger').style.display = 'block';
+        document.getElementById('loggedWorker').value = workerName;
+        document.getElementById('verifyStatus').innerHTML = '';
+      } else {
+        document.getElementById('verifyStatus').className = 'error';
+        document.getElementById('verifyStatus').innerHTML = "❌ Access Denied. Your name is not registered.";
+      }
+    }
+
+    function validateInputs() {
+      let errors = [];
+      const power = parseFloat(document.getElementById('power').value);
+      const hourMeter = parseFloat(document.getElementById('hourMeter').value);
+      const usage = parseFloat(document.getElementById('usage').value);
+
+      if (isNaN(power) || power <= 0) errors.push("Motor Power must be greater than 0");
+      if (isNaN(hourMeter) || hourMeter < 0) errors.push("Hour Meter cannot be negative");
+      if (isNaN(usage) || usage < 0 || usage > 100) errors.push("Usage % must be between 0 and 100");
+
+      return errors;
+    }
+
+    function generateMotorQR() {
+      const motorId = document.getElementById('generateMotorId').value.trim();
+      if (!motorId) return alert("Enter Motor ID");
+      
+      const fullUrl = `${baseUrl}?motor=${encodeURIComponent(motorId)}`;
+      
+      document.getElementById('generateQR').innerHTML = 
+        `<p><strong>QR for: ${motorId}</strong><br><small>${fullUrl}</small></p>
+         <div id="qrContainer"></div>`;
+      
+      new QRCode(document.getElementById("qrContainer"), { text: fullUrl, width: 280, height: 280 });
+    }
+
+    function saveLog() {
+      const errors = validateInputs();
+      if (errors.length > 0) {
+        document.getElementById('status').className = 'error';
+        document.getElementById('status').innerHTML = `<strong>❌ Error:</strong><br>` + errors.join('<br>');
+        return;
+      }
+
+      const entry = `${new Date().toLocaleString()} | Worker: ${document.getElementById('loggedWorker').value} | ${document.getElementById('motorId').value} | ${document.getElementById('power').value} ${document.getElementById('unit').value} | ${document.getElementById('hourMeter').value} hrs | ${document.getElementById('usage').value}%`;
+      
+      document.getElementById('status').className = 'success';
+      document.getElementById('status').innerHTML = `<strong>✅ Saved Successfully!</strong><br><small>${entry}</small>`;
+
+      // Clear form for next entry
+      document.getElementById('power').value = '';
+      document.getElementById('hourMeter').value = '';
+      document.getElementById('usage').value = '';
+    }
+  </script>
+</body>
+</html>
