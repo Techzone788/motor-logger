@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motor Usage Logger</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+      background: #f4f4f4; 
+      max-width: 600px; 
+      padding-bottom: 50px;
+    }
+    h1 { color: #007bff; text-align: center; }
+    h2 { color: #333; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input, select, button { 
+      padding: 12px; 
+      margin: 8px 0; 
+      width: 100%; 
+      font-size: 16px; 
+      box-sizing: border-box; 
+    }
+    button { 
+      background: #007bff; 
+      color: white; 
+      border: none; 
+      cursor: pointer; 
+      font-size: 18px; 
+      padding: 15px; 
+      border-radius: 5px;
+    }
+    button:hover { background: #0056b3; }
+    #qrcode { margin: 20px 0; text-align: center; }
+    #status { margin-top: 15px; padding: 15px; background: #d4edda; border-radius: 8px; }
+    .note { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Motor Usage Logger</h1>
+
+  <!-- Generator Section -->
+  <div id="generator">
+    <h2>Generate Motor QR Code</h2>
+    <label>Motor ID / Name:</label>
+    <input type="text" id="generateMotorId" placeholder="e.g. Motor-A1" value="Motor-A1">
+    <button onclick="generateMotorQR()">Generate QR Code</button>
+    <div id="generateQR"></div>
+  </div>
+
+  <hr>
+
+  <!-- Logger Section -->
+  <div id="logger" style="display: none;">
+    <h2>Log Usage</h2>
+    <label>Motor ID:</label>
+    <input type="text" id="motorId" readonly>
+
+    <label>Motor Power:</label>
+    <input type="number" id="power" placeholder="e.g. 15.5" step="0.1">
+
+    <label>Unit:</label>
+    <select id="unit">
+      <option value="kW">kW</option>
+      <option value="HP">HP</option>
+    </select>
+
+    <label>Hour Meter Reading:</label>
+    <input type="number" id="hourMeter" placeholder="e.g. 2456.5" step="0.1">
+
+    <label>Usage Percentage (%):</label>
+    <input type="number" id="usage" placeholder="e.g. 85" min="0" max="100">
+
+    <button onclick="saveLog()">Save Log Entry</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const baseUrl = "https://techzone788.github.io/motor-logger";
+
+    // Check if user came from QR code scan
+    const urlParams = new URLSearchParams(window.location.search);
+    const motorFromQR = urlParams.get('motor');
+
+    if (motorFromQR) {
+      // Logger Mode
+      document.getElementById('generator').style.display = 'none';
+      document.getElementById('logger').style.display = 'block';
+      document.getElementById('motorId').value = decodeURIComponent(motorFromQR);
+    } else {
+      // Generator Mode
+      document.getElementById('generator').style.display = 'block';
+      document.getElementById('logger').style.display = 'none';
+    }
+
+    function generateMotorQR() {
+      const motorId = document.getElementById('generateMotorId').value.trim();
+      if (!motorId) {
+        alert("⚠️ Please enter Motor ID");
+        return;
+      }
+
+      const fullUrl = `${baseUrl}?motor=${encodeURIComponent(motorId)}`;
+
+      document.getElementById('generateQR').innerHTML = 
+        `<p><strong>QR Code for: ${motorId}</strong><br>
+         <small>${fullUrl}</small></p>
+         <div id="qrContainer"></div>`;
+
+      new QRCode(document.getElementById("qrContainer"), {
+        text: fullUrl,
+        width: 280,
+        height: 280
+      });
+    }
+
+    function saveLog() {
+      const motorId = document.getElementById('motorId').value;
+      const power = document.getElementById('power').value;
+      const unit = document.getElementById('unit').value;
+      const hourMeter = document.getElementById('hourMeter').value;
+      const usage = document.getElementById('usage').value;
+      const date = new Date().toLocaleString();
+
+      if (!power || !hourMeter || !usage) {
+        alert("⚠️ Please fill Power, Hour Meter and Usage fields");
+        return;
+      }
+
+      const entry = `${date} | ${motorId} | ${power} ${unit} | ${hourMeter} hrs | ${usage}%`;
+      
+      document.getElementById('status').innerHTML = 
+        `<strong>✅ Log Saved Successfully!</strong><br><small>${entry}</small>`;
+      
+      console.log("Saved Entry:", entry);
+    }
+  </script>
+</body>
+</html>
